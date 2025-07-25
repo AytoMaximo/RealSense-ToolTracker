@@ -53,6 +53,7 @@ private:
 
     std::shared_ptr<std::thread> udpThread;
     bool udpEnabled = false;
+    bool sendColor = false;
 
     std::shared_ptr<std::thread> udpReceiveThread;
     bool multiEnabled = false;
@@ -63,7 +64,7 @@ private:
     std::map<long long, Eigen::Matrix4f> extrinsics;
 
     GLFWwindow* window = nullptr;
-    GLuint texture = 0, dtexture = 0;
+    GLuint texture = 0, dtexture = 0, ctexture = 0;
     std::vector<Tool> tools;
     std::map<int, Eigen::Matrix4f> toolTransforms;
     std::mutex secondaryDataMutex;

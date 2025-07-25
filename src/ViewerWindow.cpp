@@ -383,6 +383,25 @@ void ViewerWindow::UdpThreadFunction()
                     }
                 }
             }
+
+            if (sendColor && m_connected)
+            {
+                cv::Mat cframe = tracker.getNextColorFrame();
+                if (!cframe.empty())
+                {
+                    cv::Mat resized;
+                    cv::resize(cframe, resized, cv::Size(cframe.cols/2, cframe.rows/2));
+                    std::vector<uchar> enc;
+                    cv::imencode(".jpg", resized, enc, {cv::IMWRITE_JPEG_QUALITY, 50});
+                    if (enc.size() + 4 < 65000)
+                    {
+                        std::vector<uint8_t> buf(enc.size() + 4);
+                        buf[0] = 'I'; buf[1] = 'M'; buf[2] = 'G'; buf[3] = '0';
+                        std::copy(enc.begin(), enc.end(), buf.begin() + 4);
+                        nanosockets_send(socket, &sendAddress, buf.data(), buf.size());
+                    }
+                }
+            }
         }
 
         int sleepDurationMs = 1000 / frequency; // Convert frequency to sleep duration in milliseconds
@@ -487,6 +506,7 @@ void ViewerWindow::Render() {
     // Generate textures
     glGenTextures(1, &texture);
     glGenTextures(1, &dtexture);
+    glGenTextures(1, &ctexture);
 
     ImGuiWindowFlags overlayFlags = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar |
                                     ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize |
@@ -746,6 +766,8 @@ void ViewerWindow::Render() {
         ImGui::SetNextItemWidth(110);
         ImGui::InputInt("Frequency", &frequency);
         ImGui::SameLine();
+        ImGui::Checkbox("Send Color", &sendColor);
+        ImGui::SameLine();
         if (ImGui::Checkbox("UDP", &udpEnabled))
         {
             if (udpEnabled)
@@ -825,6 +847,7 @@ void ViewerWindow::Render() {
 
         cv::Mat frame = tracker.getNextIRFrame();
         cv::Mat depth = tracker.getNextDepthFrame();
+        cv::Mat color = tracker.getNextColorFrame();
 
         if (!depth.empty() && (tracker.IsTrackingTools() || calibrationInitiated))
         {
@@ -850,6 +873,19 @@ void ViewerWindow::Render() {
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, depth.cols, depth.rows, 0, GL_RGB, GL_UNSIGNED_BYTE, depth.data);
             ImGui::Image(reinterpret_cast<void *>(static_cast<intptr_t>(dtexture)), ImVec2(424, 240));
             ImGui::End();
+
+            if (!color.empty())
+            {
+                ImGui::SetNextWindowPos(ImVec2(20, windowHeight - 560));
+                ImGui::Begin("Color Monitor", nullptr, overlayFlags);
+                glBindTexture(GL_TEXTURE_2D, ctexture);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, color.cols, color.rows, 0, GL_BGR, GL_UNSIGNED_BYTE, color.data);
+                ImGui::Image(reinterpret_cast<void *>(static_cast<intptr_t>(ctexture)), ImVec2(424, 240));
+                ImGui::End();
+            }
         }
 
         if (tracker.IsTrackingTools())
@@ -922,6 +958,7 @@ void ViewerWindow::Render() {
 void ViewerWindow::StopRender() {
     glDeleteTextures(1, &texture);
     glDeleteTextures(1, &dtexture);
+    glDeleteTextures(1, &ctexture);
     ImGui_ImplGlfw_Shutdown();
     ImGui_ImplOpenGL3_Shutdown();
     ImGui::DestroyContext();

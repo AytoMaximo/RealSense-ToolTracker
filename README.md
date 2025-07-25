@@ -110,6 +110,7 @@ Upon launching the RealSense Tool Tracker, the application will attempt to load 
 
 ### Additional Resources
 A sample Python and a C# Unity scripts is provided for receiving and processing the tracking data via UDP.
+The Unity script can also display JPEG encoded color frames when the **Send Color** option is enabled in the tracker.
 
 ## Contributing
 Contributions are welcome! When submitting a pull request, please include a description of your improvements and reference any relevant issue numbers.
