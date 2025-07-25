@@ -24,9 +24,21 @@ This project leverages the versatility of Intel RealSense cameras, enabling high
 
 ## Prerequisites
 
-* Intel RealSense SDK (MacOS users, please refer to the FAQ for installation guidance)
+* Intel RealSense SDK (install the development package so `librealsense2/rs.hpp` is available; MacOS users, please refer to the FAQ for installation guidance)
 * OpenCV 4
-* CMake 
+* CMake
+
+### Installing the Intel RealSense SDK
+
+**Linux (Ubuntu/Debian):**
+Add Intel's repository and install the development packages:
+
+```bash
+sudo apt-get install librealsense2-utils librealsense2-dev librealsense2-dkms
+```
+
+**Windows:**
+Download and run the [Intel RealSense SDK 2.0](https://www.intelrealsense.com/sdk-2/) installer.  After installation, ensure the `realsense2.dll` and headers are accessible to your build system.  You may need to adjust the paths defined in `CMakeLists.txt` if CMake does not detect the SDK automatically.
 
 ## Building
 Ensure all the prerequisites are installed before proceeding with the build process.
