@@ -18,12 +18,17 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 #endif
+using UnityEngine.UI;
 public class UDPToolTrackingReceiver : MonoBehaviour
 {
 
     public int port = 12345; // The port number should match the one you are sending on.
     public int toolID = 1; // The tool ID should match the one you are sending on.
     private Queue<ToolTrackingData> receivedUDPPacketQueue = new Queue<ToolTrackingData>();
+    private Queue<byte[]> receivedImageQueue = new Queue<byte[]>();
+
+    public RawImage colorImage;
+    private Texture2D colorTexture;
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
     public struct ToolTrackingData
@@ -88,14 +93,19 @@ public class UDPToolTrackingReceiver : MonoBehaviour
             {
                 byte[] receivedBytes = new byte[reader.UnconsumedBufferLength];
                 reader.ReadBytes(receivedBytes);
-
-                // Convert the bytes received into the structure we're expecting
-                ToolTrackingData trackingData = ByteArrayToStructure<ToolTrackingData>(receivedBytes);
-                // Debug.Log($"Received: Timestamp - {trackingData.timestamp}, Position - ({trackingData.posX}, {trackingData.posY}, {trackingData.posZ}), Rotation - ({trackingData.rotX}, {trackingData.rotY}, {trackingData.rotZ}, {trackingData.rotW}), Tool ID - {trackingData.toolId}");
-                // Filter by toolID if necessary
-                if (trackingData.toolId == toolID)
+                if (receivedBytes.Length == Marshal.SizeOf(typeof(ToolTrackingData)))
                 {
-                    receivedUDPPacketQueue.Enqueue(trackingData);
+                    ToolTrackingData trackingData = ByteArrayToStructure<ToolTrackingData>(receivedBytes);
+                    if (trackingData.toolId == toolID)
+                    {
+                        receivedUDPPacketQueue.Enqueue(trackingData);
+                    }
+                }
+                else if (receivedBytes.Length > 4 && receivedBytes[0] == (byte)'I' && receivedBytes[1] == (byte)'M' && receivedBytes[2] == (byte)'G')
+                {
+                    byte[] img = new byte[receivedBytes.Length - 4];
+                    Array.Copy(receivedBytes, 4, img, 0, img.Length);
+                    receivedImageQueue.Enqueue(img);
                 }
             }
         }
@@ -137,11 +147,19 @@ public class UDPToolTrackingReceiver : MonoBehaviour
             try
             {
                 byte[] data = client.Receive(ref anyIP);
-                ToolTrackingData trackingData = ByteArrayToStructure<ToolTrackingData>(data);
-                // Debug.Log($"Received: Timestamp - {trackingData.timestamp}, Position - ({trackingData.posX}, {trackingData.posY}, {trackingData.posZ}), Rotation - ({trackingData.rotX}, {trackingData.rotY}, {trackingData.rotZ}, {trackingData.rotW}), Tool ID - {trackingData.toolId}");
-                if (trackingData.toolId == toolID)
+                if (data.Length == Marshal.SizeOf(typeof(ToolTrackingData)))
                 {
-                    receivedUDPPacketQueue.Enqueue(trackingData);
+                    ToolTrackingData trackingData = ByteArrayToStructure<ToolTrackingData>(data);
+                    if (trackingData.toolId == toolID)
+                    {
+                        receivedUDPPacketQueue.Enqueue(trackingData);
+                    }
+                }
+                else if (data.Length > 4 && data[0] == (byte)'I' && data[1] == (byte)'M' && data[2] == (byte)'G')
+                {
+                    byte[] img = new byte[data.Length - 4];
+                    Buffer.BlockCopy(data, 4, img, 0, img.Length);
+                    receivedImageQueue.Enqueue(img);
                 }
             }
             catch (ObjectDisposedException)
@@ -181,6 +199,18 @@ public class UDPToolTrackingReceiver : MonoBehaviour
             // Right-handed to left-handed coordinate system conversion
             transform.position = new Vector3(trackingData.posX, trackingData.posZ, trackingData.posY);
             transform.rotation = new Quaternion(trackingData.rotX, trackingData.rotZ, trackingData.rotY, - trackingData.rotW);
+        }
+
+        if (receivedImageQueue.Count > 0)
+        {
+            byte[] img = receivedImageQueue.Dequeue();
+            if (colorTexture == null)
+                colorTexture = new Texture2D(2, 2);
+            colorTexture.LoadImage(img);
+            if (colorImage != null)
+            {
+                colorImage.texture = colorTexture;
+            }
         }
     }
 

@@ -113,7 +113,12 @@ public:
     cv::Mat getNextIRFrame() {
         std::lock_guard<std::mutex> lock(mtx_frames);
         return trackingFrame;
-    }   
+    }
+
+    cv::Mat getNextColorFrame() {
+        std::lock_guard<std::mutex> lock(mtx_frames);
+        return colorFrame;
+    }
 
 private:
 
@@ -126,6 +131,7 @@ private:
     std::mutex mtx_frames;
     cv::Mat trackingFrame;
     cv::Mat depthFrame;
+    cv::Mat colorFrame;
 
     std::atomic<bool> Terminated = ATOMIC_VAR_INIT(false);
     std::shared_ptr<std::thread> Thread;

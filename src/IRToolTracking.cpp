@@ -35,6 +35,7 @@ void IRToolTracking::initializeFromFile(const std::string& file) {
 
     // Load the configuration from file
     config.enable_device_from_file(file);
+    config.enable_stream(RS2_STREAM_COLOR);
     intrinsics_found = false;
     Terminated = false;
     playFromFile = true;
@@ -73,6 +74,7 @@ void IRToolTracking::initialize(int index, int width, int height) {
 
     config.enable_stream(RS2_STREAM_INFRARED, 1, frame_width, frame_height, RS2_FORMAT_Y8, 90);
     config.enable_stream(RS2_STREAM_DEPTH, frame_width, frame_height, RS2_FORMAT_Z16, 90);
+    config.enable_stream(RS2_STREAM_COLOR, frame_width, frame_height, RS2_FORMAT_BGR8, 30);
 
     Terminated = false;
 }
@@ -166,6 +168,7 @@ void IRToolTracking::processStreams() {
 
         rs2::frame ir_frame_left = frames.get_infrared_frame(1);
         rs2::frame depth_frame = frames.get_depth_frame();
+        rs2::frame color_frame = frames.get_color_frame();
 
         depth_frame = spat_filter.process(depth_frame); // Apply Spatial Filter
         depth_frame = temp_filter.process(depth_frame); // Apply Temporal Filter
@@ -176,6 +179,11 @@ void IRToolTracking::processStreams() {
             std::lock_guard<std::mutex> lock(mtx_frames);
             depthFrame = cv::Mat(cv::Size(frame_width, frame_height), CV_8UC3,
                 (void*)colorized_depth.get_data(), cv::Mat::AUTO_STEP).clone();
+            if (color_frame)
+            {
+                colorFrame = cv::Mat(cv::Size(frame_width, frame_height), CV_8UC3,
+                    (void*)color_frame.get_data(), cv::Mat::AUTO_STEP).clone();
+            }
         }
 
         // Get intrinsic parameters of the depth sensor if not already retrieved
